@@ -1,0 +1,19 @@
+.grid {
+    position: relative;
+
+    background-color: #333333;
+}
+
+.grid-box {
+    position: absolute;
+
+    width: 38px; height: 38px;
+    border: 1px solid #000000;
+    background-color: #f0f8ff;
+}
+
+.click-wave {
+    position: absolute;
+
+
+}

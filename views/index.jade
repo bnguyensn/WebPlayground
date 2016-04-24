@@ -1,5 +1,15 @@
 extends layout
 
+block custom-scripts
+    script(src="javascripts/index.js")
+
 block content
-  h1= title
-  p Welcome to #{title}
+    h1= title
+    p Welcome to #{title}
+
+    input(type="button" value="Resize!")#resizer
+
+    #main
+        a(href="#"): img(src="/images/jgl.png" alt="Sample image")
+        a(href="#"): img(src="/images/leo.png" alt="Sample image")
+        a(href="#"): img(src="/images/scarjo.png" alt="Sample image")

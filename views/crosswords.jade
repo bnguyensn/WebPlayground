@@ -1,0 +1,11 @@
+extends layout
+
+block custom-scripts
+    link(rel='stylesheet', href='/stylesheets/crosswords.css')
+    script(src="javascripts/crosswords.js")
+
+block content
+    h1= title
+    p Interactive grid below:
+
+    .grid.hidden
