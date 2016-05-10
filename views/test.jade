@@ -1,0 +1,17 @@
+extends layout
+
+block custom-scripts
+    //link(rel='stylesheet', href='/stylesheets/anagram.css')
+
+block content
+    h1= title
+    p For testing purposes.
+
+    div(data-ng-app="testApp" data-ng-controller="testCtrl")
+
+        button(data-ng-click="btnClick()") Go!
+        br
+
+        p(data-ng-bind="statusDisplay")
+
+    script(src="javascripts/test.js")

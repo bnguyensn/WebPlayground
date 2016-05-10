@@ -5,9 +5,13 @@ var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
+// Add routes here:
 var routes = require('./routes/index');
 var users = require('./routes/users');
+var test = require('./routes/test');
 var crosswords = require("./routes/crosswords");
+var anagram = require("./routes/anagram");
+var anagramServer = require("./routes/anagram-server");
 
 var app = express();
 
@@ -23,9 +27,13 @@ app.use(bodyParser.urlencoded({extended: false}));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Add uses here:
 app.use('/', routes);
 app.use('/users', users);
+app.use('/test', test);
 app.use("/crosswords", crosswords);
+app.use("/anagram", anagram);
+app.use("/anagram-server", anagramServer);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
@@ -61,6 +69,6 @@ app.use(function (err, req, res, next) {
 
 module.exports = app;
 
-var portNo = 63342;
+var portNo = 63343;
 app.listen(portNo);
 console.log("Listening on port " + portNo);
