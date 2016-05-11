@@ -1,14 +1,17 @@
 extends layout
 
 block custom-scripts
-    script(src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js")
     //link(rel='stylesheet', href='/stylesheets/anagram.css')
+    script(src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js")
 
 block content
     h1= title
     p For testing purposes.
 
     div(data-ng-app="testApp" data-ng-controller="testCtrl")
+
+        input(type="text", data-ng-model="textField")
+        br
 
         button(data-ng-click="btnClick()") Go!
         br
