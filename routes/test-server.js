@@ -11,6 +11,8 @@ router.get('/', function(req, res, next) {
     var wordList = [];
     var aTrie = new TNode("", false, {});
     var posAng = [];
+    var resD = []; var count = 0;
+    var maxWL = 0; // Max possible word length to filter out "impossible" word combinations
 
     initAll();
 
@@ -21,6 +23,14 @@ router.get('/', function(req, res, next) {
             createTrie(aTrie, wordList);
             rcvPosAng(qry, aTrie, []);
             console.log("Found " + posAng.length + " possible anagrams for " + qry.join(""));
+            findD(qry.length);
+            console.log("Total different way to make up the sum: " + resD.join(" | "));
+            var newResD = [];
+            for (var i = resD.length; i--;) {
+                // Filter out word combinations with too lengthy words (note word lengths are sorted descending)
+                if (resD[i][0] <= maxWL) {newResD.push(resD[i]);} else {break;}
+            }
+            console.log("Total possible word combinations after filtering: " + newResD.join(" | "));
         });
     }
 
@@ -79,9 +89,13 @@ router.get('/', function(req, res, next) {
                 var newCur = cur.slice();
                 newCur.push(lPool[i]);
 
-                // Is it a word? -> Add to posAng
+                // Is it a word? -> Add to posAng | Also check word length
                 if (curNode.br[lPool[i]].brE) {
                     posAng.push(newCur.join(""));
+                    if (maxWL < newCur.length) {
+                        maxWL = newCur.length;
+                        console.log("New long word: " + newCur.join(""));
+                    }
                     //console.log("Pushed " + newCur.join("") + " to posAng.")
                 }
 
@@ -97,7 +111,6 @@ router.get('/', function(req, res, next) {
     }
 
     // Find unique combination of integers that add up to a sum
-    var resD = []; var count = 0;
     function findD(rem, cur) {
         count += 1;
         var nJP;
@@ -118,6 +131,12 @@ router.get('/', function(req, res, next) {
             }
         }
     }
+
+    // Find multi-word anagram
+    function findMA(cur, lPool, wBlkLen) {
+
+    }
+
 
     // Create the .json dictionary (done)
     /*

@@ -2,7 +2,7 @@ var app = angular.module("testApp", []);
 
 app.controller("testCtrl", function($scope, $http) {
     
-    $scope.textField = "marbles";
+    $scope.textField = "thisisfun";
     
     $scope.btnClick = function() {
         // Do something
