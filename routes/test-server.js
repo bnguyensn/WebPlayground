@@ -22,6 +22,7 @@ router.get('/', function(req, res, next) {
             wordListProcess(JSON.parse(data));
             createTrie(aTrie, wordList);
             rcvPosAng(qry, aTrie, []);
+            posAng = removeUnique(posAng);
             console.log("Found " + posAng.length + " possible anagrams for " + qry.join(""));
             findD(qry.length);
             console.log("Total different way to make up the sum: " + resD.join(" | "));
@@ -135,6 +136,11 @@ router.get('/', function(req, res, next) {
     // Find multi-word anagram
     function findMA(cur, lPool, wBlkLen) {
 
+    }
+
+    // Remove unique items from array
+    function removeUnique(arr) {
+        return Array.from(new Set(arr));
     }
 
 
