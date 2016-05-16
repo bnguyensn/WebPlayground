@@ -10,30 +10,35 @@ router.get('/', function(req, res, next) {
     // The "word" list & trie
     var wordList = [];
     var aTrie = new TNode("", false, {});
-    var posAng = [];
+    var posAng = {};
     var resD = []; var count = 0;
     var maxWL = 0; // Max possible word length to filter out "impossible" word combinations
 
-    initAll();
-
-    function initAll() {
-        fs.readFile('tmp/enable1-ang.json', "utf8", function(err, data) {
-            if (err) { return console.log(err); }
-            wordListProcess(JSON.parse(data));
-            createTrie(aTrie, wordList);
-            rcvPosAng(qry, aTrie, []);
-            posAng = removeUnique(posAng);
-            console.log("Found " + posAng.length + " possible anagrams for " + qry.join(""));
-            findD(qry.length);
-            console.log("Total different way to make up the sum: " + resD.join(" | "));
-            var newResD = [];
-            for (var i = resD.length; i--;) {
-                // Filter out word combinations with too lengthy words (note word lengths are sorted descending)
-                if (resD[i][0] <= maxWL) {newResD.push(resD[i]);} else {break;}
-            }
-            console.log("Total possible word combinations after filtering: " + newResD.join(" | "));
+    fs.readFile('tmp/enable1-ang.json', "utf8", function(err, data) {
+        if (err) { return console.log(err); }
+        wordListProcess(JSON.parse(data));
+        createTrie(aTrie, wordList);
+        rcvPosAng(qry, aTrie, []);
+        //posAng = removeUnique(posAng);
+        //console.log("Found " + posAng.length + " possible anagrams for " + qry.join(""));
+        var str = "";
+        Object.keys(posAng).forEach(function(key) {
+            str += key + "; "
         });
-    }
+        console.log("posAng's keys: " + str);
+        findD(qry.length);
+        console.log("Total different way to make up the sum: " + resD.join(" | "));
+        var newResD = [];
+        for (var i = resD.length; i--;) {
+            // Filter out word combinations with too lengthy words (note word lengths are sorted descending)
+            if (resD[i][0] <= maxWL) {newResD.push(resD[i]);} else {break;}
+        }
+        console.log("Total possible word combinations after filtering: " + newResD.join(" | "));
+        for (var j = 0; j < newResD.length; j++) {
+            // Loop through each word combinations
+            findMA("", qry, newResD[i]);
+        }
+    });
 
     function wordListProcess(obj) {
         Object.keys(obj).forEach(function(key) { wordList.push(key); });
@@ -92,7 +97,15 @@ router.get('/', function(req, res, next) {
 
                 // Is it a word? -> Add to posAng | Also check word length
                 if (curNode.br[lPool[i]].brE) {
-                    posAng.push(newCur.join(""));
+
+                    if ('undefined' !== typeof posAng[newCur.length]) {
+                        posAng[newCur.length].push(newCur.join(""));
+                    } else {
+                        posAng[newCur.length] = [newCur.join("")];
+                    }
+
+
+                    //posAng.push(newCur.join(""));
                     if (maxWL < newCur.length) {
                         maxWL = newCur.length;
                         console.log("New long word: " + newCur.join(""));
@@ -134,8 +147,10 @@ router.get('/', function(req, res, next) {
     }
 
     // Find multi-word anagram
-    function findMA(cur, lPool, wBlkLen) {
+    function findMA(currentAnagram, letterPool, combination) {
+        for (var i = 0; i < combination.length; i++) {
 
+        }
     }
 
     // Remove unique items from array
