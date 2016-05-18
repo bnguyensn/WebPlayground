@@ -2,14 +2,13 @@ var express = require('express');
 var router = express.Router();
 var fs = require("fs");
 
-
 router.get('/', function(req, res, next) {
 
     var qry = req.query.q.split("").sort();
 
     // The "word" list & trie
     var wordList = [];
-    var aTrie = new TNode("", false, {});
+    var aTrie;
     var posAng = {};
     var resD = []; var count = 0;
     var maxWL = 0; // Max possible word length to filter out "impossible" word combinations
@@ -17,7 +16,23 @@ router.get('/', function(req, res, next) {
     fs.readFile('tmp/enable1-ang.json', "utf8", function(err, data) {
         if (err) { return console.log(err); }
         wordListProcess(JSON.parse(data));
-        createTrie(aTrie, wordList);
+
+        //createTrie(aTrie, wordList);
+        //loadTrie(aTrie);
+        var t0 = process.hrtime();
+        aTrie = require('../tmp/enable1-trie.json');
+        var t1 = process.hrtime();
+        
+
+        console.log("Total brE: " + countBrEs(aTrie));
+        var t2 = process.hrtime();
+
+        var diff1 = (t1[0] * 1000000 + t1[1] / 1000) - (t0[0] * 1000000 + t0[1] / 1000);
+        var diff2 = (t2[0] * 1000000 + t2[1] / 1000) - (t1[0] * 1000000 + t1[1] / 1000);
+
+        console.log("Time t0-t1: " + diff1 + '\ Time t2-t1: ' + diff2);
+
+        /*
         rcvPosAng(qry, aTrie, []);
         //posAng = removeUnique(posAng);
         //console.log("Found " + posAng.length + " possible anagrams for " + qry.join(""));
@@ -38,7 +53,20 @@ router.get('/', function(req, res, next) {
             // Loop through each word combinations
             findMA("", qry, newResD[i]);
         }
+        */
     });
+
+    function countBrEs(node) {
+        var countBrE = 0;
+        var tNode = node;
+        Object.keys(tNode.br).forEach(function(key) {
+            if (tNode.br[key].brE) {
+                countBrE += 1;
+            }
+            countBrE += countBrEs(tNode.br[key]);
+        });
+        return countBrE;
+    }
 
     function wordListProcess(obj) {
         Object.keys(obj).forEach(function(key) { wordList.push(key); });
@@ -46,10 +74,8 @@ router.get('/', function(req, res, next) {
     }
 
     // The trie node object
-    function TNode(letter, branchEnd, parent) {
-        this.l = letter;
+    function TNode(branchEnd) {
         this.brE = branchEnd;
-        this.p = parent;
         this.br = {};
 
         this.addBr = function(str) {
@@ -58,7 +84,7 @@ router.get('/', function(req, res, next) {
             var i;
             for (i = 0; i < letters.length; i++) {
                 if (!(tNode.br.hasOwnProperty(letters[i]))) {
-                    tNode.br[letters[i]] = new TNode(letters[i], i == letters.length - 1, tNode);
+                    tNode.br[letters[i]] = new TNode(i == letters.length - 1);
                 } else if (i == letters.length - 1) {
                     tNode.br[letters[i]].brE = true;
                 }
@@ -80,11 +106,26 @@ router.get('/', function(req, res, next) {
     }
 
     function createTrie(trie, wordList) {
+        trie = new TNode(false);
         var i;
         for (i = 0; i < wordList.length; i++) {
             trie.addBr(wordList[i]);
         }
         console.log("Number of words in trie: " + trie.countBrE());
+        /*
+        fs.writeFile('tmp/enable1-trie.json', JSON.stringify(trie, null, 4), function(err) {
+            if (err) { return console.log(err); }
+            console.log("JSON saved!");
+        });
+        */
+    }
+
+    function loadTrie(trie) {
+        fs.readFile('tmp/enable1-trie.json', 'utf8', function(err, data) {
+            if (err) { return console.log(err); }
+            trie = data;
+            console.log('Total brE = ' + trie.countBrE());
+        });
     }
 
     function rcvPosAng(lPool, trie, cur) {
@@ -171,7 +212,7 @@ router.get('/', function(req, res, next) {
 
             var aDict = {};
             initDict(aDict, data.split(/\r?\n/));
-            //writeDict(aDict, 'tmp/tmp.json');
+            //writeDict(aDict, 'tmp/enable1-trie.json');
 
             // Create object
             function initDict(dict, wordList) {
