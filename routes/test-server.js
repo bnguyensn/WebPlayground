@@ -6,64 +6,96 @@ router.get('/', function(req, res, next) {
 
     var qry = req.query.q.split('').sort();
 
+    var aDict;
     var aTrie;
     var posAng = {};
 
     var maxWL = 0; // Max possible word length to filter out "impossible" word combinations
     var finalRes = [];
+    var finalRes2 = [];
 
     fs.readFile('tmp/enable1-ang.json', "utf8", function(err, data) {
-        if (err) {
-            return console.log(err);
-        }
+        if (err) { return console.log(err); }
 
+        aDict = JSON.parse(data);
         //wordListProcess(JSON.parse(data));
         //createTrie(aTrie, wordList);
         //loadTrie(aTrie);
 
         aTrie = require('../tmp/enable1-trie.json');
         console.log("Total brE: " + countBrEs(aTrie));
+        
+        // Start here:
 
-        rcvPosAng(qry, aTrie, []);
+        var t0 = process.hrtime();
+
+        rcvPosAngUnq(removeUnique(qry), qry, aTrie, []);
         //posAng = removeUnique(posAng);
         //console.log("Found " + posAng.length + " possible anagrams for " + qry.join(""));
-        var str = "";
+
+        /*var str = "";
         Object.keys(posAng).forEach(function (key) {
             str += key + "; "
         });
-        console.log("posAng's keys: " + str);
+        console.log("posAng's keys: " + str);*/
 
-        // Find all possible word combinations e.g. [5], [4, 1], ... (Note these are sorted descending).
+        /* Find all possible word combinations e.g. [5], [4, 1], ... (Note these are sorted descending).
+        "Impossible" word combinations based on word lengths of possible anagrams are filtered out */
         var wordCombs = [];
-        findIntComb(wordCombs, qry.length);
-        console.log('Found ' + wordCombs.length + ' different ways to make up the sum: ' + wordCombs.join(" | "));
+        findIntComb(wordCombs, qry.length, null, posAng);
+        console.log('Found ' + wordCombs.length + ' different ways to make up the multi-word anagram: '
+            + wordCombs.join(" | "));
 
-        /* Filter out "impossible" word combinations i.e.
-         - Words that are too long / short. */
-        var wordCombsFltd = [];
-        for (var i = wordCombs.length; i--;) {
 
-            if (wordCombs[i][0] <= maxWL) {
-                wordCombsFltd.push(wordCombs[i]);
+        /* Loop through each word combination.
+         */
+        for (var j = 0; j < wordCombs.length; j++) {
+            if (wordCombs[j].length > 1) {
+                findMAng(wordCombs[j], 0, 0, [], qry);
             } else {
-                break;
-            }
-        }
-        console.log("Total possible word combinations after filtering: " + wordCombsFltd.join(" | "));
-
-        // Loop through each word combination.
-        for (var j = 0; j < wordCombsFltd.length; j++) {
-            if (wordCombsFltd[j].length == 1) {
                 // There is only 1 case where this could happen. Consider optimising this.
-
-            } else {
-                findMAng(wordCombsFltd[j], 0, 0, [], qry);
+                //findOAng(finalRes, qry, aDict);
+                finalRes.push([qry.join('')]);
             }
         }
 
-        // Finally, return result
-        console.log('Total multi-word anagrams found: ' + finalRes.length);
+        // Return result.
+        /*console.log('Total multi-word anagrams (raw) found: ' + finalRes.length +
+            '\nHere they are: ' + finalRes.join(' | '));*/
+
+        // Now process this result through the "real" anagram dictionary.
+        for (var k = 0; k < finalRes.length; k++) {
+            matchAng(finalRes[k], 0, 0, []);
+        }
+
+        // Return final result.
+        //console.log('Here they are: ' + finalRes2.join(' | '));
+        console.log('Total multi-word anagrams found: ' + finalRes2.length);
+
+        var t1 = process.hrtime();
+        var diff = (t1[0] - t0[0])*1e9 + t1[1] - t0[1];
+        console.log('benchmark took %d seconds', diff/1e9);
+
+        // End here
     });
+
+    function matchAng(angBlk, angBlkPos, startPos, curAng) {
+        // Loop through each anagram of a word.
+        for (var i = startPos; i < aDict[angBlk[angBlkPos]].length; i++) {
+            var newCurAng = curAng.slice();
+            newCurAng.push(aDict[angBlk[angBlkPos]][i]);
+            //console.log('Pushed ' + aDict[angBlk[angBlkPos]][i] + ' to curAng.');
+            if (angBlkPos < angBlk.length - 1) {
+                var newStartPos = 0;
+                if (angBlk[angBlkPos].localeCompare(angBlk[angBlkPos + 1]) == 0) { newStartPos = i; }
+                matchAng(angBlk, angBlkPos + 1, newStartPos, newCurAng);
+            } else {
+                finalRes2.push(newCurAng.join(' '));
+                //console.log('Pushed ' + newCurAng.join(' ') + ' to finalRes2!');
+            }
+        }
+    }
+
 
     function findMAng(wComb, wCombPos, startPos, curAng, lPool) {
         var setLen = wComb[wCombPos];
@@ -87,19 +119,37 @@ router.get('/', function(req, res, next) {
             /* Check if a word is to be added, add it, then recurse to next set,
             unless if there is no next set, then push the anagram to the final result. */
             if (str.split('').length == setLen) {
-                curAng.push(str);
+                var newCurAng = curAng.slice();
+                newCurAng.push(str);
+                //console.log('Pushed ' + str + ' to a curAng.');
                 var newStartPos = 0;
 
                 // If the next word set is similar to this word set, we only need to loop from i onwards.
                 if (wCombPos > 0 && wComb[wCombPos] == wComb[wCombPos + 1]) { newStartPos = i; }
-                if (wCombPos < wComb.length) {
-                    findMAng(wComb, wCombPos + 1, newStartPos, curAng, newLPool);
+                if (wCombPos < wComb.length - 1) {
+                    findMAng(wComb, wCombPos + 1, newStartPos, newCurAng, newLPool);
                 } else {
-                    finalRes.push(curAng.join(''));
+                    finalRes.push(newCurAng);
+                    //console.log('Pushed ' + newCurAng.join(' ') + ' to finalRes!');
                 }
             }
         }
     }
+
+    /* Find one-word anagram. Simply point to the query's reference in the anagram dictionary.
+    query should be a sorted array of letters. */
+    function findOAng(res, query, angDict) {
+        var queryStr = query.join('');
+        if ('undefined' !== typeof angDict[queryStr]) {
+            for (var i = 0; i < angDict[queryStr].length; i++) {
+                res.push(angDict[queryStr][i]);
+                //console.log('Pushed ' + angDict[queryStr][i] + ' to finalRes!');
+            }
+        } else {
+            //console.log('No results found for one-word query ' + queryStr);
+        }
+    }
+
     // Debug function (count number of "words" in the trie)
     function countBrEs(node) {
         var countBrE = 0;
@@ -121,21 +171,14 @@ router.get('/', function(req, res, next) {
                 var newCur = cur.slice();
                 newCur.push(lPool[i]);
 
-                // Is it a word? -> Add to posAng | Also check word length
+                // Is it a word? -> Add to posAng.
                 if (curNode.br[lPool[i]].brE) {
-
                     if ('undefined' !== typeof posAng[newCur.length]) {
                         posAng[newCur.length].push(newCur.join(""));
                     } else {
                         posAng[newCur.length] = [newCur.join("")];
                     }
-
-
                     //posAng.push(newCur.join(""));
-                    if (maxWL < newCur.length) {
-                        maxWL = newCur.length;
-                        console.log("New long word: " + newCur.join(""));
-                    }
                     //console.log("Pushed " + newCur.join("") + " to posAng.")
                 }
 
@@ -145,13 +188,44 @@ router.get('/', function(req, res, next) {
                     //console.log("Calling rcv: newLP="+newLP+"; newCur="+newCur);
                     rcvPosAng(newLP, curNode.br[lPool[i]], newCur);
                 }
-
             }
         }
     }
 
-    // Find unique combinations of integers that add up to a sum, ignoring certain combinations.
-    function findIntComb(res, rem, cur) {
+    function rcvPosAngUnq(lPoolUnq, lPool, trie, cur) {
+        var curNode = trie;
+
+        // Loop through each letter in the unique letter pool.
+        for (var i = 0; i < lPoolUnq.length; i++) {
+            if ('undefined' !== typeof curNode.br[lPoolUnq[i]]) {
+                
+                // Found a trie key that matches a letter in the unique letter pool.
+                var newCur = cur.slice();
+                newCur.push(lPoolUnq[i]);
+
+                // Does this letter mark the end of a word? -> Add word to possible anagram list.
+                if (curNode.br[lPoolUnq[i]].brE) {
+                    if ('undefined' !== typeof posAng[newCur.length]) {
+                        posAng[newCur.length].push(newCur.join(''));
+                    } else {
+                        posAng[newCur.length] = [newCur.join('')];
+                    }
+                }
+
+                var newLP = lPool.slice(); var newLPUnq = lPoolUnq.slice();
+                newLP.splice(newLP.indexOf(newLPUnq[i]), 1);
+                if (newLP.indexOf(newLPUnq[i]) < 0) { newLPUnq.splice(i, 1); }
+                if (newLP.length > 0) {
+                    rcvPosAngUnq(newLPUnq, newLP, curNode.br[lPoolUnq[i]], newCur);
+                }
+            }
+        }
+    }
+
+    /* Find unique combinations of integers that add up to a sum, ignoring certain combinations.
+    The "cond" is the object containing all possible anagram, with word lengths being its keys.
+    Word lengths that do not exist in "cond" are not added to the result array */
+    function findIntComb(res, rem, cur, cond) {
         var nJP;
         if (cur == null) {
             cur = [];
@@ -163,10 +237,13 @@ router.get('/', function(req, res, next) {
             res.push(cur);
         } else {
             for (var i = Math.min(nJP, rem); i >= 1; i--) {
-                var newArr = cur.slice();
-                newArr.push(i);
-                // Recurse:
-                findIntComb(res, rem - i, newArr);
+                // Ignore certain integers from the result here.
+                if ('undefined' !== typeof cond[i]) {
+                    var newArr = cur.slice();
+                    newArr.push(i);
+                    // Recurse:
+                    findIntComb(res, rem - i, newArr, cond);
+                }
             }
         }
     }
