@@ -47,8 +47,7 @@ router.get('/', function(req, res, next) {
             + wordCombs.join(" | "));
 
 
-        /* Loop through each word combination.
-         */
+        // Loop through each word combination.
         for (var j = 0; j < wordCombs.length; j++) {
             if (wordCombs[j].length > 1) {
                 findMAng(wordCombs[j], 0, 0, [], qry);
@@ -98,11 +97,12 @@ router.get('/', function(req, res, next) {
 
 
     function findMAng(wComb, wCombPos, startPos, curAng, lPool) {
-        var setLen = wComb[wCombPos];
+        // wordLens are items in wComb e.g. in [4, 1] we have wordLen 4 and 1.
+        var wordLen = wComb[wCombPos];
 
-        // Loop through each word in the word set.
-        for (var i = startPos; i < posAng[setLen].length; i++) {
-            var word = posAng[setLen][i].split('');
+        // Loop through each word in the wordLen set.
+        for (var i = startPos; i < posAng[wordLen].length; i++) {
+            var word = posAng[wordLen][i].split('');
             var newLPool = lPool.slice();
 
             /* Verify that the word can be added to the anagram by checking if lPool contains every letter word[n]
@@ -118,14 +118,14 @@ router.get('/', function(req, res, next) {
 
             /* Check if a word is to be added, add it, then recurse to next set,
             unless if there is no next set, then push the anagram to the final result. */
-            if (str.split('').length == setLen) {
+            if (str.split('').length == wordLen) {
                 var newCurAng = curAng.slice();
                 newCurAng.push(str);
                 //console.log('Pushed ' + str + ' to a curAng.');
                 var newStartPos = 0;
 
                 // If the next word set is similar to this word set, we only need to loop from i onwards.
-                if (wCombPos > 0 && wComb[wCombPos] == wComb[wCombPos + 1]) { newStartPos = i; }
+                if (/*wCombPos > 0 && */wComb[wCombPos] == wComb[wCombPos + 1]) { newStartPos = i; }
                 if (wCombPos < wComb.length - 1) {
                     findMAng(wComb, wCombPos + 1, newStartPos, newCurAng, newLPool);
                 } else {
