@@ -2,81 +2,80 @@ var express = require('express');
 var router = express.Router();
 var fs = require("fs");
 
+// Open anagram dictionary files.
+var aDict; var aTrie; var dictOpened = true;
+try {
+    aDict = require('../tmp/enable1-ang.json');
+    aTrie = require('../tmp/enable1-trie.json');
+    console.log("Anagram dictionary opened successfully. Total brE: " + countBrEs(aTrie));
+} catch (err) {
+    dictOpened = false;
+    console.log(err);
+}
+
+// Debug function (count number of "words" in the trie)
+function countBrEs(node) {
+    var countBrE = 0;
+    var tNode = node;
+    Object.keys(tNode.br).forEach(function(key) {
+        if (tNode.br[key].brE) {
+            countBrE += 1;
+        }
+        countBrE += countBrEs(tNode.br[key]);
+    });
+    return countBrE;
+}
+
 router.get('/', function(req, res, next) {
 
+    console.log('New query received.');
+
+    // Split and sort the queried phrase alphabetically into an array of letters.
     var qry = req.query.q.split('').sort();
 
-    var aDict;
-    var aTrie;
+    // Result variables.
     var posAng = {};
-
-    var maxWL = 0; // Max possible word length to filter out "impossible" word combinations
     var finalRes = [];
     var finalRes2 = [];
 
-    fs.readFile('tmp/enable1-ang.json', "utf8", function(err, data) {
-        if (err) { return console.log(err); }
+    // ============= Start of the anagram process.
+    var t0 = process.hrtime();
 
-        aDict = JSON.parse(data);
-        //wordListProcess(JSON.parse(data));
-        //createTrie(aTrie, wordList);
-        //loadTrie(aTrie);
+    // Find all possible sub-words.
+    rcvPosAngUnq(removeUnique(qry), qry, aTrie, []);
 
-        aTrie = require('../tmp/enable1-trie.json');
-        console.log("Total brE: " + countBrEs(aTrie));
-        
-        // Start here:
+    /* Find all possible word combinations e.g. [5], [4, 1], ... (Note these are sorted descending).
+     "Impossible" word combinations based on word lengths of possible anagrams are filtered out */
+    var wordCombs = [];
+    findIntComb(wordCombs, qry.length, null, posAng);
+    console.log('Found ' + wordCombs.length + ' different ways to make up the multi-word anagram: '
+        + wordCombs.join(" | "));
 
-        var t0 = process.hrtime();
-
-        rcvPosAngUnq(removeUnique(qry), qry, aTrie, []);
-        //posAng = removeUnique(posAng);
-        //console.log("Found " + posAng.length + " possible anagrams for " + qry.join(""));
-
-        /*var str = "";
-        Object.keys(posAng).forEach(function (key) {
-            str += key + "; "
-        });
-        console.log("posAng's keys: " + str);*/
-
-        /* Find all possible word combinations e.g. [5], [4, 1], ... (Note these are sorted descending).
-        "Impossible" word combinations based on word lengths of possible anagrams are filtered out */
-        var wordCombs = [];
-        findIntComb(wordCombs, qry.length, null, posAng);
-        console.log('Found ' + wordCombs.length + ' different ways to make up the multi-word anagram: '
-            + wordCombs.join(" | "));
-
-
-        // Loop through each word combination.
-        for (var j = 0; j < wordCombs.length; j++) {
-            if (wordCombs[j].length > 1) {
-                findMAng(wordCombs[j], 0, 0, [], qry);
-            } else {
-                // There is only 1 case where this could happen. Consider optimising this.
-                //findOAng(finalRes, qry, aDict);
-                finalRes.push([qry.join('')]);
-            }
+    // Loop through each word combination.
+    for (var j = 0; j < wordCombs.length; j++) {
+        if (wordCombs[j].length > 1) {
+            findMAng(wordCombs[j], 0, 0, [], qry);
+        } else {
+            // There is only 1 case where this could happen. Consider optimising this.
+            finalRes.push([qry.join('')]);
         }
+    }
 
-        // Return result.
-        /*console.log('Total multi-word anagrams (raw) found: ' + finalRes.length +
-            '\nHere they are: ' + finalRes.join(' | '));*/
+    // Now process this result through the "real" anagram dictionary.
+    for (var k = 0; k < finalRes.length; k++) {
+        matchAng(finalRes[k], 0, 0, []);
+    }
 
-        // Now process this result through the "real" anagram dictionary.
-        for (var k = 0; k < finalRes.length; k++) {
-            matchAng(finalRes[k], 0, 0, []);
-        }
+    // Return final result.
+    //console.log('Here they are: ' + finalRes2.join(' | '));
+    console.log('Total multi-word anagrams found: ' + finalRes2.length);
 
-        // Return final result.
-        //console.log('Here they are: ' + finalRes2.join(' | '));
-        console.log('Total multi-word anagrams found: ' + finalRes2.length);
+    var t1 = process.hrtime();
+    var diff = (t1[0] - t0[0])*1e9 + t1[1] - t0[1];
+    console.log('Anagram process took %d seconds', diff/1e9);
+    // ============= End of the anagram process.
 
-        var t1 = process.hrtime();
-        var diff = (t1[0] - t0[0])*1e9 + t1[1] - t0[1];
-        console.log('benchmark took %d seconds', diff/1e9);
-
-        // End here
-    });
+    res.send('All is well.');
 
     function matchAng(angBlk, angBlkPos, startPos, curAng) {
         // Loop through each anagram of a word.
@@ -106,7 +105,7 @@ router.get('/', function(req, res, next) {
             var newLPool = lPool.slice();
 
             /* Verify that the word can be added to the anagram by checking if lPool contains every letter word[n]
-            in word. Quit the loop as soon as the check fails. */
+             in word. Quit the loop as soon as the check fails. */
             var str = '';
             for (var n = 0; n < word.length; n++) {
                 var indexOfN = newLPool.indexOf(word[n]);
@@ -117,7 +116,7 @@ router.get('/', function(req, res, next) {
             }
 
             /* Check if a word is to be added, add it, then recurse to next set,
-            unless if there is no next set, then push the anagram to the final result. */
+             unless if there is no next set, then push the anagram to the final result. */
             if (str.split('').length == wordLen) {
                 var newCurAng = curAng.slice();
                 newCurAng.push(str);
@@ -137,7 +136,7 @@ router.get('/', function(req, res, next) {
     }
 
     /* Find one-word anagram. Simply point to the query's reference in the anagram dictionary.
-    query should be a sorted array of letters. */
+     query should be a sorted array of letters. */
     function findOAng(res, query, angDict) {
         var queryStr = query.join('');
         if ('undefined' !== typeof angDict[queryStr]) {
@@ -150,18 +149,7 @@ router.get('/', function(req, res, next) {
         }
     }
 
-    // Debug function (count number of "words" in the trie)
-    function countBrEs(node) {
-        var countBrE = 0;
-        var tNode = node;
-        Object.keys(tNode.br).forEach(function(key) {
-            if (tNode.br[key].brE) {
-                countBrE += 1;
-            }
-            countBrE += countBrEs(tNode.br[key]);
-        });
-        return countBrE;
-    }
+
 
     function rcvPosAng(lPool, trie, cur) {
         var curNode = trie;
@@ -198,7 +186,7 @@ router.get('/', function(req, res, next) {
         // Loop through each letter in the unique letter pool.
         for (var i = 0; i < lPoolUnq.length; i++) {
             if ('undefined' !== typeof curNode.br[lPoolUnq[i]]) {
-                
+
                 // Found a trie key that matches a letter in the unique letter pool.
                 var newCur = cur.slice();
                 newCur.push(lPoolUnq[i]);
@@ -223,8 +211,8 @@ router.get('/', function(req, res, next) {
     }
 
     /* Find unique combinations of integers that add up to a sum, ignoring certain combinations.
-    The "cond" is the object containing all possible anagram, with word lengths being its keys.
-    Word lengths that do not exist in "cond" are not added to the result array */
+     The "cond" is the object containing all possible anagram, with word lengths being its keys.
+     Word lengths that do not exist in "cond" are not added to the result array */
     function findIntComb(res, rem, cur, cond) {
         var nJP;
         if (cur == null) {
@@ -256,76 +244,76 @@ router.get('/', function(req, res, next) {
     // Load the "word" list to create the trie
     // Obsolete now that we load a pre-rendered trie
     /*
-    var wordList = [];
-    function wordListProcess(obj) {
-        Object.keys(obj).forEach(function(key) { wordList.push(key); });
-        console.log("Created wordList with length = " + wordList.length);
-    }
-    */
+     var wordList = [];
+     function wordListProcess(obj) {
+     Object.keys(obj).forEach(function(key) { wordList.push(key); });
+     console.log("Created wordList with length = " + wordList.length);
+     }
+     */
 
     // Load the pre-rendered trie
     // Obsolete now that we can just use require('...')
     /*
-    function loadTrie(trie) {
-        fs.readFile('tmp/enable1-trie.json', 'utf8', function(err, data) {
-            if (err) { return console.log(err); }
-            trie = JSON.parse(data);
-            console.log('Total brE = ' + countBrEs(trie));
-        });
-    }
-    */
+     function loadTrie(trie) {
+     fs.readFile('tmp/enable1-trie.json', 'utf8', function(err, data) {
+     if (err) { return console.log(err); }
+     trie = JSON.parse(data);
+     console.log('Total brE = ' + countBrEs(trie));
+     });
+     }
+     */
 
     // The TNode object, used to generate the trie
     // Obsolete now that we load a pre-rendered trie
     /*
-    function TNode(branchEnd) {
-        this.brE = branchEnd;
-        this.br = {};
+     function TNode(branchEnd) {
+     this.brE = branchEnd;
+     this.br = {};
 
-        this.addBr = function(str) {
-            var letters = str.split("");
-            var tNode = this;
-            var i;
-            for (i = 0; i < letters.length; i++) {
-                if (!(tNode.br.hasOwnProperty(letters[i]))) {
-                    tNode.br[letters[i]] = new TNode(i == letters.length - 1);
-                } else if (i == letters.length - 1) {
-                    tNode.br[letters[i]].brE = true;
-                }
-                tNode = tNode.br[letters[i]];
-            }
-        };
+     this.addBr = function(str) {
+     var letters = str.split("");
+     var tNode = this;
+     var i;
+     for (i = 0; i < letters.length; i++) {
+     if (!(tNode.br.hasOwnProperty(letters[i]))) {
+     tNode.br[letters[i]] = new TNode(i == letters.length - 1);
+     } else if (i == letters.length - 1) {
+     tNode.br[letters[i]].brE = true;
+     }
+     tNode = tNode.br[letters[i]];
+     }
+     };
 
-        this.countBrE = function() {
-            var count = 0;
-            var tNode = this;
-            Object.keys(tNode.br).forEach(function(key) {
-                if (tNode.br[key].brE) {
-                    count += 1;
-                }
-                count += tNode.br[key].countBrE();
-            });
-            return count;
-        };
-    }
-    */
+     this.countBrE = function() {
+     var count = 0;
+     var tNode = this;
+     Object.keys(tNode.br).forEach(function(key) {
+     if (tNode.br[key].brE) {
+     count += 1;
+     }
+     count += tNode.br[key].countBrE();
+     });
+     return count;
+     };
+     }
+     */
 
     // Create the trie (done)
     /*
-    function createTrie(trie, wordList) {
-        trie = new TNode(false);
-        var i;
-        for (i = 0; i < wordList.length; i++) {
-            trie.addBr(wordList[i]);
-        }
-        console.log("Number of words in trie: " + trie.countBrE());
+     function createTrie(trie, wordList) {
+     trie = new TNode(false);
+     var i;
+     for (i = 0; i < wordList.length; i++) {
+     trie.addBr(wordList[i]);
+     }
+     console.log("Number of words in trie: " + trie.countBrE());
 
-        fs.writeFile('tmp/enable1-trie.json', JSON.stringify(trie, null, 4), function(err) {
-            if (err) { return console.log(err); }
-            console.log("JSON saved!");
-        });
-    }
-    */
+     fs.writeFile('tmp/enable1-trie.json', JSON.stringify(trie, null, 4), function(err) {
+     if (err) { return console.log(err); }
+     console.log("JSON saved!");
+     });
+     }
+     */
 
     // Create the .json dictionary (done)
     /*
