@@ -269,7 +269,6 @@ router.get('/', function(req, res, next) {
      function TNode(branchEnd) {
      this.brE = branchEnd;
      this.br = {};
-
      this.addBr = function(str) {
      var letters = str.split("");
      var tNode = this;
@@ -283,7 +282,6 @@ router.get('/', function(req, res, next) {
      tNode = tNode.br[letters[i]];
      }
      };
-
      this.countBrE = function() {
      var count = 0;
      var tNode = this;
@@ -307,7 +305,6 @@ router.get('/', function(req, res, next) {
      trie.addBr(wordList[i]);
      }
      console.log("Number of words in trie: " + trie.countBrE());
-
      fs.writeFile('tmp/enable1-trie.json', JSON.stringify(trie, null, 4), function(err) {
      if (err) { return console.log(err); }
      console.log("JSON saved!");
@@ -320,15 +317,12 @@ router.get('/', function(req, res, next) {
      //createADict(dfPath);
      function createADict(path) {
      fs.readFile(path, "utf8", function(err, data) {
-
      if (err) {
      return console.log(err);
      }
-
      var aDict = {};
      initDict(aDict, data.split(/\r?\n/));
      //writeDict(aDict, 'tmp/enable1-trie.json');
-
      // Create object
      function initDict(dict, wordList) {
      var wCount = 0, aCount = 0;
@@ -345,7 +339,6 @@ router.get('/', function(req, res, next) {
      console.log("Number of words iterated: " + wCount);
      console.log("Number of anagram entries: " + aCount);
      }
-
      // Write .json
      function writeDict(dict, path) {
      fs.writeFile(path, JSON.stringify(dict, null, 4), function(err) {
